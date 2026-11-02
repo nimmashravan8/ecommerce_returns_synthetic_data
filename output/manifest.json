@@ -1,0 +1,176 @@
+{
+  "dataset_name": "synthetic_ecommerce_orders_and_returns",
+  "generated_at_utc": "2026-11-02T10:54:17.113865+00:00",
+  "random_seed": 20261022,
+  "generation_time_seconds": 9.4,
+  "total_files": 12,
+  "files": {
+    "customers.csv": {
+      "row_count": 10000,
+      "column_count": 5,
+      "columns": [
+        "customer_id",
+        "customer_name",
+        "email",
+        "account_created_at",
+        "customer_tier"
+      ],
+      "size_kb": 763.15
+    },
+    "products.csv": {
+      "row_count": 500,
+      "column_count": 4,
+      "columns": [
+        "sku_id",
+        "category",
+        "unit_price",
+        "is_returnable"
+      ],
+      "size_kb": 16.61
+    },
+    "orders.csv": {
+      "row_count": 30000,
+      "column_count": 10,
+      "columns": [
+        "order_id",
+        "customer_id",
+        "order_date",
+        "order_status",
+        "currency",
+        "subtotal_amount",
+        "discount_amount",
+        "tax_amount",
+        "total_paid_amount",
+        "delivery_date"
+      ],
+      "size_kb": 3057.53
+    },
+    "order_lines.csv": {
+      "row_count": 52632,
+      "column_count": 10,
+      "columns": [
+        "order_line_id",
+        "order_id",
+        "line_number",
+        "sku_id",
+        "category",
+        "unit_price",
+        "quantity",
+        "line_discount",
+        "line_total",
+        "returnable"
+      ],
+      "size_kb": 4562.59
+    },
+    "return_requests.csv": {
+      "row_count": 5000,
+      "column_count": 7,
+      "columns": [
+        "return_request_id",
+        "order_id",
+        "customer_id",
+        "request_date",
+        "policy_window_days",
+        "days_since_delivery",
+        "request_status"
+      ],
+      "size_kb": 389.37
+    },
+    "return_lines.csv": {
+      "row_count": 8000,
+      "column_count": 7,
+      "columns": [
+        "return_line_id",
+        "return_request_id",
+        "order_line_id",
+        "return_reason",
+        "requested_quantity",
+        "approved_quantity",
+        "line_status"
+      ],
+      "size_kb": 709.66
+    },
+    "return_authorizations.csv": {
+      "row_count": 3862,
+      "column_count": 5,
+      "columns": [
+        "ra_id",
+        "return_request_id",
+        "authorized_date",
+        "expires_at",
+        "status"
+      ],
+      "size_kb": 307.64
+    },
+    "return_shipments.csv": {
+      "row_count": 3862,
+      "column_count": 7,
+      "columns": [
+        "shipment_id",
+        "ra_id",
+        "carrier",
+        "tracking_number",
+        "shipped_date",
+        "delivered_to_wh_date",
+        "shipment_status"
+      ],
+      "size_kb": 374.43
+    },
+    "inspections.csv": {
+      "row_count": 4576,
+      "column_count": 8,
+      "columns": [
+        "inspection_id",
+        "shipment_id",
+        "return_line_id",
+        "return_request_id",
+        "inspection_date",
+        "item_condition",
+        "inspector_id",
+        "passed_inspection"
+      ],
+      "size_kb": 549.38
+    },
+    "inventory_dispositions.csv": {
+      "row_count": 4576,
+      "column_count": 5,
+      "columns": [
+        "disposition_id",
+        "inspection_id",
+        "disposition_action",
+        "disposition_date",
+        "warehouse_location"
+      ],
+      "size_kb": 328.96
+    },
+    "refunds.csv": {
+      "row_count": 4139,
+      "column_count": 9,
+      "columns": [
+        "refund_id",
+        "return_request_id",
+        "inspection_id",
+        "refund_date",
+        "gross_refund_amount",
+        "restocking_fee",
+        "return_shipping_fee",
+        "net_refund_amount",
+        "refund_status"
+      ],
+      "size_kb": 409.5
+    },
+    "ground_truth.csv": {
+      "row_count": 210,
+      "column_count": 6,
+      "columns": [
+        "entity_name",
+        "record_id",
+        "parent_id",
+        "issue_type",
+        "expected_decision",
+        "description"
+      ],
+      "size_kb": 34.66
+    }
+  }
+}
