@@ -1,10 +1,10 @@
 # 📦 Synthetic E-Commerce Returns & Operational Anomaly Dataset
 
-[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://ecommerce-returns-synthetic-data-4tjmwwaipdexqeckp7bdkk.streamlit.app/)
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://ecommercereturnssyntheticdata-46jvmwalp4wujeokp7bvkk.streamlit.app/)
 
-> **Live Interactive Dashboard:** [Access the Cloud Dashboard Here](https://ecommerce-returns-synthetic-data-4tjmwwaipdexqeckp7bdkk.streamlit.app/)
+> **Live Interactive Dashboard:** [Access the Cloud Dashboard Here](https://ecommercereturnssyntheticdata-46jvmwalp4wujeokp7bvkk.streamlit.app/)
 
-A deterministic, high-fidelity synthetic data generator and validation suite simulating the complete end-to-end e-commerce order, return, warehouse inspection, inventory disposition, and refund lifecycle.
+A deterministic, high-fidelity synthetic data generator, ETL pipeline, and evaluation suite simulating the complete end-to-end e-commerce order, return, logistics tracking, warehouse inspection, inventory disposition, and refund lifecycle.
 
 ---
 
@@ -28,7 +28,7 @@ ecommerce_returns_synthetic_data/
 │   ├── refunds.csv              # 4,139 financial payouts
 │   ├── ground_truth.csv         # 210 isolated anomalies with expected decisions
 │   ├── manifest.json            # Run metadata and schema signatures
-│   └── ecommerce_returns.db     # Relational SQLite database
+│   └── ecommerce_returns.db     # Relational SQLite database (~15.7 MB)
 ├── src/
 │   ├── config.py                # Deterministic seed (20261022) & business constants
 │   ├── master_data.py           # Customer & Product generators
@@ -43,7 +43,4 @@ ecommerce_returns_synthetic_data/
 │   ├── load_sqlite.py           # SQLite ETL & analytics reporting pipeline
 │   └── dashboard.py            # Streamlit interactive analytics UI
 ├── tests/
-│   ├── test_validation.py       # PK, FK, enum, temporal & arithmetic test suite
-│   └── test_reproducibility.py  # Dual-run SHA-256 hash parity verification
-├── requirements.txt
-└── README.md
+│   ├── test_validation.py       #
