@@ -1,6 +1,6 @@
 """
 Interactive Streamlit Dashboard for Synthetic E-Commerce Returns Analytics.
-Self-contained entrypoint designed for Streamlit Community Cloud.
+Includes dynamic Date Range filtering, Customer Segment drill-downs, and CSV exports.
 """
 from pathlib import Path
 import sqlite3
@@ -32,6 +32,7 @@ def load_data():
 
     conn = sqlite3.connect(DB_PATH)
 
+    customers = pd.read_sql_query("SELECT * FROM customers", conn)
     orders = pd.read_sql_query("SELECT * FROM orders", conn)
     order_lines = pd.read_sql_query("SELECT * FROM order_lines", conn)
     returns = pd.read_sql_query("SELECT * FROM return_requests", conn)
@@ -41,6 +42,11 @@ def load_data():
     refunds = pd.read_sql_query("SELECT * FROM refunds", conn)
     ground_truth = pd.read_sql_query("SELECT * FROM ground_truth", conn)
 
+    # Ensure datetime conversions
+    date_col = next((c for c in ["order_date", "created_at", "order_timestamp"] if c in orders.columns), None)
+    if date_col:
+        orders["parsed_order_date"] = pd.to_datetime(orders[date_col]).dt.date
+
     # Optional catalog join if category is not already in order_lines
     if "category" not in order_lines.columns:
         products = pd.read_sql_query("SELECT sku_id, category FROM products", conn)
@@ -48,6 +54,7 @@ def load_data():
 
     conn.close()
     return {
+        "customers": customers,
         "orders": orders,
         "order_lines": order_lines,
         "returns": returns,
@@ -59,39 +66,88 @@ def load_data():
     }
 
 
-data = load_data()
+raw_data = load_data()
+
+# ----------------- Sidebar Filters -----------------
+st.sidebar.header("🔍 Global Analytics Filters")
+
+# 1. Date Range Filter
+if "parsed_order_date" in raw_data["orders"].columns:
+    min_date = raw_data["orders"]["parsed_order_date"].min()
+    max_date = raw_data["orders"]["parsed_order_date"].max()
+    selected_date_range = st.sidebar.date_input(
+        "Order Date Range:",
+        value=(min_date, max_date),
+        min_value=min_date,
+        max_value=max_date,
+    )
+else:
+    selected_date_range = None
+
+# 2. Customer Segment Drill-down
+segment_col = next((c for c in ["customer_segment", "segment", "loyalty_tier", "tier"] if c in raw_data["customers"].columns), None)
+if segment_col:
+    all_segments = ["ALL"] + sorted(list(raw_data["customers"][segment_col].dropna().unique()))
+    selected_segment = st.sidebar.selectbox("Customer Segment:", options=all_segments)
+else:
+    selected_segment = "ALL"
+
+# ----------------- Filter Application -----------------
+# Filter Orders by Customer Segment
+if segment_col and selected_segment != "ALL":
+    valid_customer_ids = raw_data["customers"][raw_data["customers"][segment_col] == selected_segment]["customer_id"]
+    filtered_orders = raw_data["orders"][raw_data["orders"]["customer_id"].isin(valid_customer_ids)]
+else:
+    filtered_orders = raw_data["orders"].copy()
+
+# Filter Orders by Date Range
+if selected_date_range and len(selected_date_range) == 2:
+    start_d, end_d = selected_date_range
+    filtered_orders = filtered_orders[
+        (filtered_orders["parsed_order_date"] >= start_d) & 
+        (filtered_orders["parsed_order_date"] <= end_d)
+    ]
+
+# Downstream Cascading Filters
+valid_order_ids = set(filtered_orders["order_id"])
+filtered_order_lines = raw_data["order_lines"][raw_data["order_lines"]["order_id"].isin(valid_order_ids)]
+filtered_returns = raw_data["returns"][raw_data["returns"]["order_id"].isin(valid_order_ids)]
+valid_rma_ids = set(filtered_returns["return_id"])
+filtered_return_lines = raw_data["return_lines"][raw_data["return_lines"]["return_id"].isin(valid_rma_ids)]
+valid_rmal_ids = set(filtered_return_lines["return_line_id"])
+filtered_inspections = raw_data["inspections"][raw_data["inspections"]["return_line_id"].isin(valid_rmal_ids)]
+filtered_dispositions = raw_data["dispositions"][raw_data["dispositions"]["return_line_id"].isin(valid_rmal_ids)]
+filtered_refunds = raw_data["refunds"][raw_data["refunds"]["return_id"].isin(valid_rma_ids)]
 
 # ----------------- Header & KPIs -----------------
 st.title("📦 E-Commerce Returns & Anomaly Analytics")
 st.caption(f"Connected to `{DB_PATH.name}` | Deterministic Seed: `{RANDOM_SEED}`")
 
-total_orders = len(data["orders"])
+total_orders = len(filtered_orders)
 
-# Dynamically locate the order total column or fall back to order lines sum
 sales_candidates = ["order_total", "total_amount", "total_amount_usd", "total", "grand_total", "order_value"]
-sales_col = next((c for c in sales_candidates if c in data["orders"].columns), None)
+sales_col = next((c for c in sales_candidates if c in filtered_orders.columns), None)
 if sales_col:
-    total_sales = float(data["orders"][sales_col].sum())
-elif "line_total" in data["order_lines"].columns:
-    total_sales = float(data["order_lines"]["line_total"].sum())
+    total_sales = float(filtered_orders[sales_col].sum())
+elif "line_total" in filtered_order_lines.columns:
+    total_sales = float(filtered_order_lines["line_total"].sum())
 else:
     total_sales = 0.0
 
-total_returns = len(data["returns"])
+total_returns = len(filtered_returns)
 
-# Dynamically locate net refund column
 refund_candidates = ["net_refund_amount", "refund_amount", "net_amount", "total_refund"]
-refund_col = next((c for c in refund_candidates if c in data["refunds"].columns), None)
-total_refunded = float(data["refunds"][refund_col].sum()) if refund_col else 0.0
+refund_col = next((c for c in refund_candidates if c in filtered_refunds.columns), None)
+total_refunded = float(filtered_refunds[refund_col].sum()) if refund_col else 0.0
 
-total_anomalies = len(data["ground_truth"])
+total_anomalies = len(raw_data["ground_truth"])
 
 col1, col2, col3, col4, col5 = st.columns(5)
-col1.metric("Total Orders", f"{total_orders:,}")
+col1.metric("Filtered Orders", f"{total_orders:,}")
 col2.metric("Gross Sales", f"${total_sales:,.2f}")
 col3.metric("Return Requests", f"{total_returns:,}")
 col4.metric("Net Refunds", f"${total_refunded:,.2f}")
-col5.metric("Anomalies Logged", f"{total_anomalies:,}")
+col5.metric("Anomalies Injected", f"{total_anomalies:,}")
 
 st.divider()
 
@@ -105,8 +161,8 @@ tab1, tab2, tab3 = st.tabs([
 with tab1:
     st.subheader("Return Rate by Product Category")
 
-    merged_cat = data["order_lines"].merge(
-        data["return_lines"][["order_line_id", "return_line_id"]],
+    merged_cat = filtered_order_lines.merge(
+        filtered_return_lines[["order_line_id", "return_line_id"]],
         on="order_line_id",
         how="left",
     )
@@ -120,7 +176,7 @@ with tab1:
     ).reset_index()
 
     cat_summary["return_rate_pct"] = (
-        (cat_summary["total_returned"] / cat_summary["total_sold"]) * 100
+        (cat_summary["total_returned"] / cat_summary["total_sold"].replace(0, 1)) * 100
     ).round(2)
 
     c1, c2 = st.columns([3, 2])
@@ -156,11 +212,11 @@ with tab2:
 
     with c1:
         cond_col = next(
-            (c for c in ["item_condition", "condition_grade", "condition", "grade"] if c in data["inspections"].columns),
+            (c for c in ["item_condition", "condition_grade", "condition", "grade"] if c in filtered_inspections.columns),
             None,
         )
-        if cond_col:
-            grade_counts = data["inspections"][cond_col].value_counts().reset_index()
+        if cond_col and len(filtered_inspections) > 0:
+            grade_counts = filtered_inspections[cond_col].value_counts().reset_index()
             grade_counts.columns = [cond_col, "count"]
             fig_grade = px.pie(
                 grade_counts,
@@ -171,15 +227,15 @@ with tab2:
             )
             st.plotly_chart(fig_grade, use_container_width=True)
         else:
-            st.info("Condition grade column not found in inspections table.")
+            st.info("No inspection records found for the selected filter.")
 
     with c2:
         disp_col = next(
-            (c for c in ["disposition_action", "action", "disposition"] if c in data["dispositions"].columns),
+            (c for c in ["disposition_action", "action", "disposition"] if c in filtered_dispositions.columns),
             None,
         )
-        if disp_col:
-            disp_counts = data["dispositions"][disp_col].value_counts().reset_index()
+        if disp_col and len(filtered_dispositions) > 0:
+            disp_counts = filtered_dispositions[disp_col].value_counts().reset_index()
             disp_counts.columns = [disp_col, "count"]
             fig_disp = px.bar(
                 disp_counts,
@@ -193,11 +249,11 @@ with tab2:
             fig_disp.update_traces(textposition="outside")
             st.plotly_chart(fig_disp, use_container_width=True)
         else:
-            st.info("Disposition action column not found in dispositions table.")
+            st.info("No disposition records found for the selected filter.")
 
 with tab3:
     st.subheader("Injected Operational Anomalies")
-    gt = data["ground_truth"]
+    gt = raw_data["ground_truth"]
 
     c1, c2 = st.columns([2, 3])
     with c1:
