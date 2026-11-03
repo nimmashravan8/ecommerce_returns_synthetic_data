@@ -4,7 +4,7 @@
 [![GitHub Repo](https://img.shields.io/badge/GitHub-Repository-181717?logo=github)](https://github.com/nimmashravan8/ecommerce_returns_synthetic_data)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 
-> 🚀 **Live Interactive Dashboard:** [Access the Cloud Dashboard Here](https://ecommercereturnssyntheticdata-46jvmwalp4wujeokp7bvkk.streamlit.app/)
+> 🚀 **Live Interactive Dashboard:** [Access the Cloud Dashboard Here](https://ecommercereturnssyntheticdata-ujqf5zkwhpausv4iynkm2i.streamlit.app/)
 
 A deterministic, high-fidelity synthetic data generator, ETL pipeline, and evaluation suite simulating the complete end-to-end e-commerce order, return, logistics tracking, warehouse inspection, inventory disposition, and refund lifecycle.
 
