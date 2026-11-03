@@ -10,7 +10,6 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-# Resolve root directory path dynamically
 ROOT_DIR = Path(__file__).resolve().parent.parent
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
@@ -50,13 +49,11 @@ def load_data():
 
     conn.close()
 
-    # Dynamic column parsing for orders
     for col in ["order_date", "created_at", "order_timestamp"]:
         if col in orders.columns:
             orders["order_date"] = pd.to_datetime(orders[col])
             break
 
-    # Dynamic column parsing for returns
     for col in ["request_date", "created_at", "created_date", "return_date"]:
         if col in returns.columns:
             returns["request_date"] = pd.to_datetime(returns[col])
@@ -80,7 +77,6 @@ raw_data = load_data()
 # ----------------- Sidebar Filters -----------------
 st.sidebar.header("🔍 Filters")
 
-# Safe Date Filter
 if "order_date" in raw_data["orders"].columns and not raw_data["orders"]["order_date"].isna().all():
     min_date = raw_data["orders"]["order_date"].dt.date.min()
     max_date = raw_data["orders"]["order_date"].dt.date.max()
@@ -99,7 +95,6 @@ if "order_date" in raw_data["orders"].columns and not raw_data["orders"]["order_
 else:
     start_date, end_date = None, None
 
-# Find customer segment column dynamically
 cust_df = raw_data["customers"]
 segment_col = next((c for c in ["customer_segment", "segment", "tier", "account_tier"] if c in cust_df.columns), None)
 
@@ -142,7 +137,6 @@ filtered_returns = raw_data["returns"][
     raw_data["returns"][ret_order_id].isin(valid_order_ids)
 ] if ret_order_id else raw_data["returns"]
 
-# Dynamic RMA ID column detection
 rma_id_col = next((c for c in ["return_request_id", "return_id", "id"] if c in filtered_returns.columns), None)
 valid_rma_ids = set(filtered_returns[rma_id_col]) if rma_id_col else set()
 
@@ -163,11 +157,18 @@ st.title("📦 E-Commerce Returns & Anomaly Analytics")
 st.caption(f"Connected to `{DB_PATH.name}` | Seed: `{RANDOM_SEED}`")
 
 total_orders_val = len(filtered_orders)
-sales_col = next((c for c in ["total_amount", "order_total", "total", "subtotal"] if c in filtered_orders.columns), None)
-total_sales_val = filtered_orders[sales_col].sum() if sales_col else 0.0
+
+# Dynamic Gross Sales detection across possible column names or order_lines fallback
+sales_col = next((c for c in ["total_amount", "grand_total", "total_price", "order_total", "total", "subtotal"] if c in filtered_orders.columns), None)
+if sales_col:
+    total_sales_val = filtered_orders[sales_col].sum()
+elif "line_total" in filtered_order_lines.columns:
+    total_sales_val = filtered_order_lines["line_total"].sum()
+else:
+    total_sales_val = 0.0
 
 total_returns_val = len(filtered_returns)
-refund_col = next((c for c in ["net_refund_amount", "refund_amount", "amount"] if c in filtered_refunds.columns), None)
+refund_col = next((c for c in ["net_refund_amount", "refund_amount", "amount", "refund_total"] if c in filtered_refunds.columns), None)
 total_refunded_val = filtered_refunds[refund_col].sum() if refund_col else 0.0
 
 total_anomalies_val = len(raw_data["ground_truth"])
@@ -205,7 +206,7 @@ with tab1:
                 how="left",
             )
             line_tot_col = next((c for c in ["line_total", "total", "price"] if c in merged_cat.columns), None)
-            
+
             agg_dict = {
                 "total_sold": (ol_id_col, "count"),
                 "total_returned": (ret_pk, "count"),
@@ -245,7 +246,7 @@ with tab2:
     c1, c2 = st.columns(2)
 
     with c1:
-        grade_col = next((c for c in ["condition_grade", "grade", "condition"] if c in raw_data["inspections"].columns), None)
+        grade_col = next((c for c in ["condition_grade", "grade", "condition", "item_condition", "inspection_grade", "status"] if c in raw_data["inspections"].columns), None)
         if grade_col:
             grade_counts = raw_data["inspections"][grade_col].value_counts().reset_index()
             grade_counts.columns = [grade_col, "count"]
@@ -261,7 +262,7 @@ with tab2:
             st.info("Inspection grade column not found.")
 
     with c2:
-        disp_col = next((c for c in ["disposition_action", "action", "disposition"] if c in raw_data["dispositions"].columns), None)
+        disp_col = next((c for c in ["disposition_action", "action", "disposition", "outcome"] if c in raw_data["dispositions"].columns), None)
         if disp_col:
             disp_counts = raw_data["dispositions"][disp_col].value_counts().reset_index()
             disp_counts.columns = [disp_col, "count"]
@@ -304,7 +305,7 @@ with tab3:
                 "Filter by Anomaly Type:",
                 options=["ALL"] + sorted(gt[issue_col].unique().tolist()),
             )
-            filtered_gt = gt if selected_issue == "ALL" else gt[gt[issue_col] == selected_issue]
+            filtered_gt = gt if selected_issue == "ALL" else gt[gt[issue_type] == selected_issue]
             st.dataframe(filtered_gt, hide_index=True, use_container_width=True)
     else:
         st.dataframe(gt, hide_index=True, use_container_width=True)
