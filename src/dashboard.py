@@ -10,7 +10,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-# Resolve root directory path dynamically for both local runs and Streamlit Cloud
+# Resolve root directory path dynamically
 ROOT_DIR = Path(__file__).resolve().parent.parent
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
@@ -50,8 +50,14 @@ def load_data():
 
     conn.close()
 
-    orders["order_date"] = pd.to_datetime(orders["order_date"])
-    returns["created_at"] = pd.to_datetime(returns["created_at"])
+    # Dynamic column parsing to avoid any schema KeyErrors
+    if "order_date" in orders.columns:
+        orders["order_date"] = pd.to_datetime(orders["order_date"])
+
+    for col in ["request_date", "created_at", "created_date"]:
+        if col in returns.columns:
+            returns[col] = pd.to_datetime(returns[col])
+            break
 
     return {
         "customers": customers,
@@ -110,15 +116,20 @@ filtered_returns = raw_data["returns"][
     raw_data["returns"]["order_id"].isin(valid_order_ids)
 ]
 
-# Primary key in return_requests is return_request_id
-valid_rma_ids = set(filtered_returns["return_request_id"])
+# Identify return request ID column dynamically
+rma_id_col = "return_request_id" if "return_request_id" in filtered_returns.columns else "return_id"
+valid_rma_ids = set(filtered_returns[rma_id_col])
 
+# Filter return lines
+rl_col = "return_request_id" if "return_request_id" in raw_data["return_lines"].columns else "return_id"
 filtered_return_lines = raw_data["return_lines"][
-    raw_data["return_lines"]["return_request_id"].isin(valid_rma_ids)
+    raw_data["return_lines"][rl_col].isin(valid_rma_ids)
 ]
 
+# Filter refunds
+rf_col = "return_request_id" if "return_request_id" in raw_data["refunds"].columns else "return_id"
 filtered_refunds = raw_data["refunds"][
-    raw_data["refunds"]["return_request_id"].isin(valid_rma_ids)
+    raw_data["refunds"][rf_col].isin(valid_rma_ids)
 ]
 
 # ----------------- Header & KPIs -----------------
@@ -128,7 +139,7 @@ st.caption(f"Connected to `{DB_PATH.name}` | Seed: `{RANDOM_SEED}`")
 total_orders_val = len(filtered_orders)
 total_sales_val = filtered_orders["total_amount"].sum()
 total_returns_val = len(filtered_returns)
-total_refunded_val = filtered_refunds["net_refund_amount"].sum()
+total_refunded_val = filtered_refunds["net_refund_amount"].sum() if "net_refund_amount" in filtered_refunds.columns else 0.0
 total_anomalies_val = len(raw_data["ground_truth"])
 
 col1, col2, col3, col4, col5 = st.columns(5)
@@ -149,7 +160,7 @@ tab1, tab2, tab3 = st.tabs([
 
 with tab1:
     st.subheader("Return Rate by Product Category")
-    if len(filtered_order_lines) > 0:
+    if len(filtered_order_lines) > 0 and len(filtered_return_lines) > 0:
         merged_cat = filtered_order_lines.merge(
             filtered_return_lines[["order_line_id", "return_line_id"]],
             on="order_line_id",
