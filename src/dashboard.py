@@ -40,7 +40,6 @@ def load_data():
 
     conn.close()
 
-    # Parse datetime columns for filtering
     orders["order_date"] = pd.to_datetime(orders["order_date"])
     returns["created_at"] = pd.to_datetime(returns["created_at"])
 
@@ -62,7 +61,6 @@ raw_data = load_data()
 # ----------------- Sidebar Filters -----------------
 st.sidebar.header("🔍 Filters")
 
-# Date range filter based on orders
 min_date = raw_data["orders"]["order_date"].dt.date.min()
 max_date = raw_data["orders"]["order_date"].dt.date.max()
 
@@ -78,18 +76,15 @@ if isinstance(date_range, tuple) and len(date_range) == 2:
 else:
     start_date, end_date = min_date, max_date
 
-# Customer segment filter
 segments = ["ALL"] + sorted(raw_data["customers"]["customer_segment"].dropna().unique().tolist())
 selected_segment = st.sidebar.selectbox("Customer Segment", segments)
 
-# Filter customers
 filtered_customers = raw_data["customers"].copy()
 if selected_segment != "ALL":
     filtered_customers = filtered_customers[filtered_customers["customer_segment"] == selected_segment]
 
 valid_customer_ids = set(filtered_customers["customer_id"])
 
-# Filter orders by date & customer
 filtered_orders = raw_data["orders"][
     (raw_data["orders"]["order_date"].dt.date >= start_date)
     & (raw_data["orders"]["order_date"].dt.date <= end_date)
@@ -97,7 +92,6 @@ filtered_orders = raw_data["orders"][
 ]
 valid_order_ids = set(filtered_orders["order_id"])
 
-# Filter downstream tables
 filtered_order_lines = raw_data["order_lines"][
     raw_data["order_lines"]["order_id"].isin(valid_order_ids)
 ]
@@ -105,6 +99,8 @@ filtered_order_lines = raw_data["order_lines"][
 filtered_returns = raw_data["returns"][
     raw_data["returns"]["order_id"].isin(valid_order_ids)
 ]
+
+# Primary key in return_requests is return_request_id
 valid_rma_ids = set(filtered_returns["return_request_id"])
 
 filtered_return_lines = raw_data["return_lines"][
