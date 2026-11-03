@@ -3,15 +3,25 @@ Interactive Streamlit Dashboard for Synthetic E-Commerce Returns Analytics.
 Reads from output/ecommerce_returns.db to display operational KPIs,
 return lifecycle distributions, and ground truth anomaly breakdowns.
 """
-import sqlite3
+import sys
 from pathlib import Path
+import sqlite3
 import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-from src.config import CONFIG
+# Resolve root directory path dynamically for both local runs and Streamlit Cloud
+ROOT_DIR = Path(__file__).resolve().parent.parent
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
 
-DB_PATH = CONFIG.OUTPUT_DIR / "ecommerce_returns.db"
+try:
+    from src.config import CONFIG
+    DB_PATH = CONFIG.OUTPUT_DIR / "ecommerce_returns.db"
+    RANDOM_SEED = CONFIG.RANDOM_SEED
+except Exception:
+    DB_PATH = ROOT_DIR / "output" / "ecommerce_returns.db"
+    RANDOM_SEED = 20261022
 
 st.set_page_config(
     page_title="E-Commerce Returns & Anomaly Dashboard",
@@ -23,7 +33,7 @@ st.set_page_config(
 @st.cache_data
 def load_data():
     if not DB_PATH.exists():
-        st.error(f"Database not found at {DB_PATH}. Run 'python -m src.load_sqlite' first.")
+        st.error(f"Database not found at {DB_PATH}. Ensure 'output/ecommerce_returns.db' is committed.")
         st.stop()
 
     conn = sqlite3.connect(DB_PATH)
@@ -113,7 +123,7 @@ filtered_refunds = raw_data["refunds"][
 
 # ----------------- Header & KPIs -----------------
 st.title("📦 E-Commerce Returns & Anomaly Analytics")
-st.caption(f"Connected to `{DB_PATH.name}` | Seed: `{CONFIG.RANDOM_SEED}`")
+st.caption(f"Connected to `{DB_PATH.name}` | Seed: `{RANDOM_SEED}`")
 
 total_orders_val = len(filtered_orders)
 total_sales_val = filtered_orders["total_amount"].sum()
